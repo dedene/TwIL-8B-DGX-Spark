@@ -1,0 +1,66 @@
+# TwIL-8B (GGUF) on one DGX Spark: `docker compose up -d --wait` downloads the pinned GGUF and returns once the
+# OpenAI-compatible API on :8888 answers. Settings: see .env.example.
+name: twil-8b
+
+x-image: &image ${LLAMA_CPP_IMAGE:-ghcr.io/ggml-org/llama.cpp:server-cuda13@sha256:71f26c2ef2f336418cd42d617db8e479a738a0b9283e327add00e4de633cccfd}
+x-pins: &pins
+  VARIANT: ${VARIANT:-balanced}
+  QUANT: ${QUANT:-Q4_K_M}
+  MODEL_ID: ${MODEL_ID:-webAI-Official/TwIL-8B}
+  MODEL_REVISION: ${MODEL_REVISION:-58d49f0d9909e62f9c2fb09e99fc5c76f3f2d630}
+
+services:
+  # One-shot: fetch the GGUF into MODEL_DIR and check its sha256. Resumable, and a no-op once the revision stamp
+  # matches. Uses the llama.cpp image because it already ships curl.
+  download:
+    image: *image
+    entrypoint: ["bash", "/download.sh"]
+    environment:
+      <<: *pins
+      HF_TOKEN: ${HF_TOKEN:-}
+    volumes:
+      - ./tools/download.sh:/download.sh:ro
+      - ${MODEL_DIR:-~/.cache/twil-8b}:/models
+    # The image healthcheck probes llama-server's port. This service only runs curl.
+    healthcheck:
+      disable: true
+
+  twil:
+    image: *image
+    entrypoint: ["bash", "/serve.sh"]
+    container_name: twil-8b
+    restart: ${RESTART:-no}
+    depends_on:
+      download:
+        condition: service_completed_successfully
+    gpus: all
+    network_mode: host
+    ipc: host
+    ulimits:
+      memlock: -1
+      stack: 67108864
+    environment:
+      VARIANT: ${VARIANT:-balanced}
+      QUANT: ${QUANT:-Q4_K_M}
+      SERVED_NAME: ${SERVED_NAME:-twil-8b}
+      HOST: ${HOST:-0.0.0.0}
+      PORT: ${PORT:-8888}
+      CONTEXT: ${CONTEXT:-131072}
+      PARALLEL: ${PARALLEL:-1}
+      UBATCH: ${UBATCH:-2048}
+      SPEC: ${SPEC:-none}
+      TEMP: ${TEMP:-1.0}
+      TOP_P: ${TOP_P:-0.95}
+      TOP_K: ${TOP_K:-0}
+      MIN_P: ${MIN_P:-0}
+      API_KEY: ${API_KEY:-}
+    volumes:
+      - ./tools/serve.sh:/serve.sh:ro
+      - ${MODEL_DIR:-~/.cache/twil-8b}:/models:ro
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://127.0.0.1:${PORT:-8888}/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10m
+      start_interval: 5s
