@@ -35,6 +35,20 @@ llama.cpp via Docker Compose.
 - Card sampling: temperature 1.0, top_p 0.95. Balanced and verbose share architecture, tokenizer and template.
 - The card evaluates with thinking on only, and says tool use and agentic tasks were not evaluated or trained.
 
+## Findings (2026-11-06, agent benchmark)
+- spark-bench-kit tier `full`, labels `twil-8b-balanced-q4k-think` (11 of 12 suites) and `smoke-twil-8b` (speed). Stopped by
+  hand after 24 h: thinking-on GPQA unfinished (33 of 198 logged), thinking-off run and concurrency sweep not run.
+- Thinking on: BFCL single-turn 82.2, multi-turn 57.0, AgentDojo 75.0, attacks resisted 60.5, done cleanly 37.5, IFEval 90.0,
+  Dutch 77.3, agent loop 16.1 steps/min. 79 of 200 hijacks are real; 32 of them also finished the user's task.
+- Time per suite: AgentDojo attacks 4 h 45, BFCL multi-turn 7 h 14, IFEval 6 h 53, Dutch 1 h 42. GPQA 0.3 samples/min: mean 13,285
+  tokens per finished request, 4 of 29 at the 32,768 cap, about 49 tok/s for the whole server.
+- With 4 slots and 131,072 context, `Context size has been exceeded` hit all four slots at 13:13 (32k + 23k + 22k + 55k). The
+  bench retried, and no sample ended in an error. `CONTEXT=262144` had no errors; memory 47.5 GB vs 26.5 GB.
+- Per-stream decode falls from 32 tok/s on short prompts to 8-16 on long ones. Not proven: slowdown with total context in use
+  across slots rather than per slot. Test with spark-bench-kit `chains/tune-twil-8b-concurrency.env` (not run yet).
+- `docker stats` undercounts unified memory (9.5 GB shown, 26.5 GB real). Use `nvidia-smi --query-compute-apps`.
+- `SPEC=ngram` is no gain: 34.9 vs 35.3 tok/s weighted.
+
 ## Constraints
 - Stock llama.cpp; no fork and no Dockerfile.
 - Weights are under the webAI Non-Commercial License 1.0 (non-commercial research and education only). Keep that in the
