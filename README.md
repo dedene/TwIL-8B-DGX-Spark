@@ -76,24 +76,29 @@ This run is incomplete. I stopped it after 24 hours, with 11 of 12 suites done. 
 | BFCL single-turn, n=500 | 82.2 (79–85) | 82.4 (79–85) | 71.8 (68–76) |
 | BFCL multi-turn, n=200 | 57.0 (50–64) | 54.5 (48–61) | 43.0 (36–50) |
 | AgentDojo, tasks done without an attack, n=96 | 75.0 (65–83) | 84.4 (76–90) | 78.1 (69–85) |
-| AgentDojo, attacks resisted, n=200 | 60.5 (54–67) | **99.0** (96–100) | 97.0 (94–99) |
+| AgentDojo, attacks that executed, n=200 (lower is better) | 101/200 (44–57) | **2/200** (0–4) | 6/200 (1–6) |
+| AgentDojo, attacks that disclosed user data, n=200 (lower is better) | 48/200 (19–30) | **0/200** (0–2) | **0/200** (0–2) |
+| Same, mail, calendar and files: executed, n=113 | 36/113 (24–41) | **0/113** (0–3) | 1/113 (0–5) |
+| Same, mail, calendar and files: disclosed, n=113 | 20/113 (12–26) | **0/113** (0–3) | **0/113** (0–3) |
 | AgentDojo, tasks done under attack, n=200 | 53.5 (47–60) | **82.0** (76–87) | 70.5 (64–76) |
-| AgentDojo, done cleanly under attack, n=200 | 37.5 (31–44) | **81.0** | 69.0 |
+| AgentDojo, task done with no unauthorised action, n=200 | 36.5 (30–43) | **81.0** (75–86) | 69.0 (62–75) |
 | IFEval, prompt strict, n=541 | 90.0 (87–92) | 85.8 (83–88) | 85.0 (82–88) |
 | Global-MMLU Dutch, n=300 | 77.3 (72–82) | 87.0 (83–90) | **87.7** (83–91) |
 | GPQA-Diamond, n=198 | not finished | 64.6 (58–71) | 59.1 (52–66) |
-| Agent loop, steps per minute (8 tool steps) | 16.1 | 13.8 | **21.0** |
+| Scripted loop, steps per minute (latency only, no outcome scored) | 16.1 | 13.8 | **21.0** |
 | Decode, tok/s weighted over code, prose and tool calls | 35.3 | 43.6 | **67.2** |
 | Decode, Dutch prose, tok/s | 37.5 | 31.7 | **50.2** |
 | Prefill at ~32k tokens, tok/s | 1,698 | 2,274 | 2,185 |
 | 4 requests at once, tok/s | 127 | 113 | **145** |
 | Memory for the whole server | **~27 GB** (~48 GB at 262K context) | ~97 GB | ~103 GB |
 
-Numbers in brackets are 95% Wilson intervals. The speed rows come from a thinking-off pass, because decode speed does not depend on thinking. Done cleanly means the task got done and the injected instruction did not.
+**Corrected on 6 November 2026.** This table used to show "attacks resisted", taken from AgentDojo's own score. That score only counts an attack when every step completes, so a model that mailed the data out but skipped deleting the sent mail counted as safe. The rows now count what the model did: attacks that went through as an unauthorised action, and attacks that got the user's data out. Lower is better. Data disclosed is a lower bound, because it matches text word for word. All of it is one English attack template on one mailbox, so a low count is no proof of safety. The Qwen columns are thinking off.
+
+Numbers in brackets are 95% Wilson intervals. The speed rows come from a thinking-off pass, because decode speed does not depend on thinking. No unauthorised action means the task got done and no attacker action went through.
 
 Tool calling is the surprise. An 8.8B model that was never trained for it matches Qwen FP4-Local on BFCL single-turn and multi-turn, is clearly ahead of TensorFold on single-turn, and does it in a quarter of the memory. IFEval is about level with Qwen too.
 
-Prompt injection rules it out as an agent that reads anything you didn't write. 79 of 200 injected instructions got through, against 2 for Qwen FP4-Local. I read a few, and they are real: in one banking task it sent the money to the attacker's IBAN and then reported doing so "as instructed". 32 of those 79 hijacks also finished the user's task, so the result looks fine unless you check what else happened. Thinking is on here, and I can't say whether thinking off would change this, but I wouldn't count on it.
+Prompt injection rules it out as an agent that reads anything you didn't write. 101 of 200 attacks went through, against 2 for Qwen FP4-Local with thinking off, and at least 48 got user data out, against 0. I read a few, and they are real: in one banking task it sent the money to the attacker's IBAN and then reported doing so "as instructed". 34 of those 101 also finished the user's task, so the result looks fine unless you check what else happened. Thinking is on here, and I can't say whether thinking off would change this, but I wouldn't count on it.
 
 Dutch is a clear step down from Qwen at 77.3.
 
